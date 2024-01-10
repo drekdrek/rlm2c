@@ -45,6 +45,9 @@ pub enum ControllerAction {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(default, deny_unknown_fields)]
 pub struct Config {
+
+    sensitivities: HashMap<Bind, f64>,
+
     sensitivity: f64,
 
     sample_window: Duration,
@@ -67,6 +70,9 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Config {
+
+            sensitivities: HashMap::new(),
+
             sensitivity: 1.0,
 
             sample_window: Duration::from_millis(20),
@@ -185,6 +191,7 @@ impl EventHandler {
                         }
 
                         self.handle_bind(Bind::Mouse(button), state);
+                        self.handle_sensitivities(Bind::Mouse(button), state);
 
                         if self.config.mouse_button_fix && state == KeyState::Up {
                             if self.mouse_button_states.0 == KeyState::Down {
@@ -198,7 +205,8 @@ impl EventHandler {
                     }
 
                     Event::Keyboard(scancode, state) => {
-                        self.handle_bind(Bind::Keyboard(scancode), state)
+                        self.handle_bind(Bind::Keyboard(scancode), state);
+                        self.handle_sensitivities(Bind::Keyboard(scancode), state);
                     }
 
                     Event::Reset => {
@@ -228,6 +236,17 @@ impl EventHandler {
                     self.iteration_window_start = Instant::now();
                 }
             }
+        }
+    }
+
+    fn handle_sensitivities(&mut self, bind: Bind, state: KeyState) {
+        if state == KeyState::Down {
+            let sens = match self.config.sensitivities.get(&bind) {
+                Some(sens) => sens,
+                None => return,
+            };
+            self.config.sensitivity = *sens;
+            info!("changed sensitivity: {}", self.config.sensitivity.to_string());
         }
     }
 
